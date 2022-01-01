@@ -1,14 +1,13 @@
 rm()
 library("Rmosek")
 library("CVXR")
-library("mvtnorm")
 library("expm")
-library("psych")
-#set.seed(124)
 msk = MOSEK()
 import_solver(msk)
 
 gauss <- function(n){
+  #calculate Gaussian quadrature coefficient
+  #https://en.wikipedia.org/wiki/Gaussian_quadrature
   if (n == 1){
     x <- 0
     w <- 2
@@ -31,75 +30,37 @@ gauss <- function(n){
   x = 1/2+1/2*x
   return(list(x,w))
 }
-g2 <- function(x,t){
-  return(-2*t/(t*(x-1)+1)^3 + 2/(x^3))
-}
-check <- function(x,n){
-  xw = gauss(n)
-  
-  t <- unlist(xw[1])
-  w <- unlist(xw[2])
-  #print(w)
-  val = 0
-  for (i in seq(from = 1, to = n, by = 1)){
-    val = val + w[i]*g2(x,t[i])
-  }
-  return(val > 0)
-}
-bound <- function(n){
-  b = 0
-  e = 2
-  while((e - b)>1e-13){
-    m = (e+b)/2
-    if(check(m,n)){
-      b = m
-    }else{
-      e = m
-    }
-  }
-  return((e+b)/2)
-}
-sampleCov <- function(data){
-  N <- dim(data)[1]
-  print(N)
-  d <- dim(data)[2]
-  total = data[1,1:d] %*% t(data[1,1:d])
-  for (i in seq(from = 2, to = N,by = 1)){
-    total = total + data[i,1:d] %*% t(data[i,1:d])
-  }
-  return(total/N)
-}
 
+#SIGMA: CVXR pxp variable
+#optval: optimal solution value
+#n: Gaussian quadrature degree
+#d: dimension
+#sigma_i: Sample covariance of the data
 represent <- function(SIGMA,optval,n,d,sigma_i){
   
+  #ids for debug access by result[[ids[["var"]]]]
   ids <- list()
   ids[["sigma"]] <- toString(id(SIGMA))
   ids[["optval"]] <- toString(id(optval))
   
   sqrtinv_Sn <- sqrtm(solve(sigma_i))
-  SI_SN <- Variable(d,d)
   
+  #Gaussian quadrature coefficient
   xw <- gauss(n)
   t <- unlist(xw[1])
   w <- unlist(xw[2])
   
-  
-  x <- Variable(d,d)
+  #variable
+  x <- Variable(d,d) #X
   ids[["x"]] <- toString(id(x))
-  
-  x_ <- Variable(d,d,PSD = TRUE)
-  x_2 <- Variable(d,d,PSD = TRUE)
-  I <- Variable(d,d)
+  I <- Variable(d,d) #Identity matrix
   
   w_tau <- Variable(n)
-  b <- bound(n)
-  #cat(sprintf('%.20f',b))
+  
   constraints <- list(
     optval == sum_entries(w_tau),
     x == sqrtinv_Sn %*% SIGMA %*% sqrtinv_Sn,
-    I == diag(d)
-    #x_ == I*1.5 - x,
-    #x_2 == x - 0.5*I
+    I == diag(d) #Identity matrix
   )
   
   ind <- seq(from = 1, to = n,by = 1)
@@ -137,23 +98,3 @@ represent <- function(SIGMA,optval,n,d,sigma_i){
   return(list("constraints" = constraints,"variableid" = ids))
 }
 
-likelihood <- function(data, sigmaa){
-  N <- dim(data)[1]
-  d <- dim(data)[2]
-  total = t(data[1,1:d]) %*% solve(sigmaa) %*% data[1,1:d]
-  for (i in seq(from = 2, to = N,by = 1)){
-    total = total + t(data[i,1:d]) %*% solve(sigmaa) %*% data[i,1:d]
-  }
-  SN <- total/N
-  return(d/2*log(2*pi) + 1/2*log(det(sigmaa)) + 1/2 * SN)
-  
-  
-}
-
-fx <- function(x){
-  return(log(det(x)) + tr(solve(x)))  
-} 
-fx1 <- function(x){
-  x <- x*diag(4)
-  return(log(det(x)) + tr(solve(x)))  
-}
