@@ -18,7 +18,7 @@ This is a R parser for CVXR to solve the Gaussian MLE problem with added constra
 - [Constraint](https://github.com/pcbach/SP-GMLE#constraint)
 - [Debug](https://github.com/pcbach/SP-GMLE#debug)
 
-## Introduction https://github.com/pcbach/SP-GMLE#introduction
+## Introduction
 
 This parser is use to solve the [MLE](https://en.wikipedia.org/wiki/Maximum_likelihood_estimation) problem for [p-dimensional Gaussian models](https://en.wikipedia.org/wiki/Multivariate_normal_distribution) with convex constraints on the covariance matrix. Which is a generalization of the classical linear covariance models. 
 
