@@ -17,6 +17,7 @@ This is a R parser for CVXR to solve the Gaussian MLE problem with added constra
 - [Basic uses](https://github.com/pcbach/SP-GMLE#basic-uses)
 - [Constraint](https://github.com/pcbach/SP-GMLE#constraint)
 - [Debug](https://github.com/pcbach/SP-GMLE#debug)
+- [Example code](https://github.com/pcbach/SP-GMLE#example-code)
 
 ## Introduction
 
@@ -25,14 +26,13 @@ This parser is use to solve the [MLE](https://en.wikipedia.org/wiki/Maximum_like
 The problem was proven to be convex if there are enough data by [Zwiernik, Uhler, and Richards](https://arxiv.org/pdf/1408.5604.pdf). This parser produce a epigraph of the negative-log likelihood function by using [Gaussian quadrature](https://en.wikipedia.org/wiki/Gaussian_quadrature), a weighted-sum of positive semi-definite epigraphs.
 
 ## Setup
-To use this parser, you need an installation of [R](https://www.rstudio.com/) as well as [CVXR](https://cvxr.rbind.io/). Other than that, [MOSEK](https://www.mosek.com/) and [Rmosek](https://cran.r-project.org/web/packages/Rmosek/index.html) is highly recommended if you want to add any constraints.
+To use this parser, you need an installation of [R](https://www.rstudio.com/) as well as [CVXR](https://cvxr.rbind.io/). Other than that, [MOSEK](https://www.mosek.com/) and [Rmosek](https://cran.r-project.org/web/packages/Rmosek/index.html) is highly recommended if you want to add any constraints. Download [SPGL.R](https://github.com/pcbach/SP-GMLE/blob/main/SPGL.R) and put it within the same folder as your other code, then use ```source("SPGL.R")```.
 
 ```
 rm(list = ls())
 suppressMessages(require("Rmosek"))
 suppressMessages(library("CVXR"))
 suppressMessages(source("SPGL.R"))
-#set.seed(124)
 msk = MOSEK()
 import_solver(msk)
 ```
@@ -120,6 +120,39 @@ for (i in seq(from = 1, to = d,by = 1)){
 
 
 print(result$getValue(v))
+```
+## Example code
+Correlation matrix constraint on 4-d problem with 20 randomly-generated data points
+```
+rm(list = ls())
+suppressMessages(require("Rmosek"))
+suppressMessages(library("CVXR"))
+suppressMessages(source("SPGL.R"))
+msk = MOSEK()
+import_solver(msk)
+
+data = rnorm(4*20)
+data = matrix(data,nrow = 20)
+Sn = cov(data,data)*(dim(data)[1]-1)/(dim(data)[1])
+
+n = 3
+d = dim(data)[2]
+
+Sigma <- Variable(d,d)
+Tau <- Variable(1)
+rep <- represent(Sigma,Tau,n,d,Sn)
+constraints <- rep$constraints
+
+constraints <- c(constraints,list(
+  diag(Sigma) == rep(1,d)
+))
+
+objective <- Minimize(Tau)
+problem <- Problem(objective, constraints)
+result <- solve(problem, solver = "MOSEK")
+
+print(result$getValue(Sigma))
+print(result$getValue(Tau))
 ```
 
 ## Debug
